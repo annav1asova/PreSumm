@@ -107,7 +107,7 @@ replacing `/path/to/` with the path to where you saved the `stanford-corenlp-ful
 python preprocess.py -mode tokenize -raw_path RAW_PATH -save_path TOKENIZED_PATH
 ```
 
-* `RAW_PATH` is the directory containing story files (`../raw_stories`), `JSON_PATH` is the target directory to save the generated json files (`../merged_stories_tokenized`)
+* `RAW_PATH` is the directory containing story files (`../raw_data`), `JSON_PATH` is the target directory to save the generated json files (`../merged_papers_tokenized`)
 
 
 ####  Step 4. Format to Simpler Json Files
@@ -116,7 +116,7 @@ python preprocess.py -mode tokenize -raw_path RAW_PATH -save_path TOKENIZED_PATH
 python preprocess.py -mode format_to_lines -raw_path RAW_PATH -save_path JSON_PATH -n_cpus 1 -use_bert_basic_tokenizer false -map_path MAP_PATH
 ```
 
-* `RAW_PATH` is the directory containing tokenized files (`../merged_stories_tokenized`), `JSON_PATH` is the target directory to save the generated json files (`../json_data/cnndm`), `MAP_PATH` is the  directory containing the urls files (`../urls`)
+* `RAW_PATH` is the directory containing tokenized files (`../merged_papers_tokenized`), `JSON_PATH` is the target directory to save the generated json files (`../json_data/papers`)
 
 ####  Step 5. Format to PyTorch Files
 ```
@@ -166,4 +166,3 @@ python train.py  -task abs -mode train -bert_data_path BERT_DATA_PATH -dec_dropo
 * `-mode` can be {`validate, test`}, where `validate` will inspect the model directory and evaluate the model for each newly saved checkpoint, `test` need to be used with `-test_from`, indicating the checkpoint you want to use
 * `MODEL_PATH` is the directory of saved checkpoints
 * use `-mode valiadte` with `-test_all`, the system will load all saved checkpoints and select the top ones to generate summaries (this will take a while)
-

@@ -117,7 +117,7 @@ def tokenize(args):
     print("Making list of files to tokenize...")
     with open("mapping_for_corenlp.txt", "w") as f:
         for s in stories:
-            if (not s.endswith('story')):
+            if (not s.endswith('paper')):
                 continue
             f.write("%s\n" % (os.path.join(stories_dir, s)))
     command = ['java', 'edu.stanford.nlp.pipeline.StanfordCoreNLP', '-annotators', 'tokenize,ssplit',
@@ -158,7 +158,7 @@ def cal_rouge(evaluated_ngrams, reference_ngrams):
     return {"f": f1_score, "p": precision, "r": recall}
 
 
-def greedy_selection(doc_sent_list, abstract_sent_list, summary_size):
+def greedy_selection(doc_sent_list, abstract_sent_list, summary_size, stop=True):
     def _rouge_clean(s):
         return re.sub(r'[^a-zA-Z0-9 ]', '', s)
 
@@ -173,10 +173,10 @@ def greedy_selection(doc_sent_list, abstract_sent_list, summary_size):
 
     selected = []
     for s in range(summary_size):
-        cur_max_rouge = max_rouge
+        cur_max_rouge = max_rouge if stop else 0.0
         cur_id = -1
         for i in range(len(sents)):
-            if (i in selected):
+            if i in selected:
                 continue
             c = selected + [i]
             candidates_1 = [evaluated_1grams[idx] for idx in c]
@@ -189,8 +189,8 @@ def greedy_selection(doc_sent_list, abstract_sent_list, summary_size):
             if rouge_score > cur_max_rouge:
                 cur_max_rouge = rouge_score
                 cur_id = i
-        if (cur_id == -1):
-            return selected
+        if cur_id == -1:
+            return sorted(selected)
         selected.append(cur_id)
         max_rouge = cur_max_rouge
 
@@ -257,6 +257,7 @@ class BertData():
                 segments_ids += s * [1]
         cls_ids = [i for i, t in enumerate(src_subtoken_idxs) if t == self.cls_vid]
         sent_labels = sent_labels[:len(cls_ids)]
+#         print(len(cls_ids), len(src))
 
         tgt_subtokens_str = '[unused0] ' + ' [unused2] '.join(
             [' '.join(self.tokenizer.tokenize(' '.join(tt), use_bert_basic_tokenizer=use_bert_basic_tokenizer)) for tt in tgt]) + ' [unused1]'
@@ -305,8 +306,15 @@ def _format_to_bert(params):
     datasets = []
     for d in jobs:
         source, tgt = d['src'], d['tgt']
+        
+        if len(source) > 50:
+            cheating_ids = greedy_selection(source[:args.max_src_nsents], tgt, 50, stop=False)
+#             print("cheating ids: ", cheating_ids, len(source), len(cheating_ids))
+            cheating_source = [source[i] for i in cheating_ids]
+            source = cheating_source
 
-        sent_labels = greedy_selection(source[:args.max_src_nsents], tgt, 3)
+        sent_labels = greedy_selection(source[:args.max_src_nsents], tgt, 6)
+#         print(sent_labels)
         if (args.lower):
             source = [' '.join(s).lower().split() for s in source]
             tgt = [' '.join(s).lower().split() for s in tgt]
@@ -314,7 +322,7 @@ def _format_to_bert(params):
                                  is_test=is_test)
         # b_data = bert.preprocess(source, tgt, sent_labels, use_bert_basic_tokenizer=args.use_bert_basic_tokenizer)
 
-        if (b_data is None):
+        if b_data is None:
             continue
         src_subtoken_idxs, sent_labels, tgt_subtoken_idxs, segments_ids, cls_ids, src_txt, tgt_txt = b_data
         b_data_dict = {"src": src_subtoken_idxs, "tgt": tgt_subtoken_idxs,
@@ -329,23 +337,15 @@ def _format_to_bert(params):
 
 
 def format_to_lines(args):
-    corpus_mapping = {}
-    for corpus_type in ['valid', 'test', 'train']:
-        temp = []
-        for line in open(pjoin(args.map_path, 'mapping_' + corpus_type + '.txt')):
-            temp.append(hashhex(line.strip()))
-        corpus_mapping[corpus_type] = {key.strip(): 1 for key in temp}
     train_files, valid_files, test_files = [], [], []
     for f in glob.glob(pjoin(args.raw_path, '*.json')):
-        real_name = f.split('/')[-1].split('.')[0]
-        if (real_name in corpus_mapping['valid']):
+        dataset = random.choices(['train', 'valid' , 'test'], [0.8, 0.1, 0.1])[0]
+        if dataset == 'valid':
             valid_files.append(f)
-        elif (real_name in corpus_mapping['test']):
+        elif dataset == 'test':
             test_files.append(f)
-        elif (real_name in corpus_mapping['train']):
+        elif dataset == 'train':
             train_files.append(f)
-        # else:
-        #     train_files.append(f)
 
     corpora = {'train': train_files, 'valid': valid_files, 'test': test_files}
     for corpus_type in ['train', 'valid', 'test']:
