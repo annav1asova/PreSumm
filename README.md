@@ -81,6 +81,13 @@ Some codes are borrowed from ONMT(https://github.com/OpenNMT/OpenNMT-py)
 ## Data Preparation For XSum
 [Pre-processed data](https://drive.google.com/open?id=1BWBN1coTWGBqrWoOfRc5dhojPHhatbYs)
 
+## Data Preparation For Pubtrends dataset
+
+Step 1. Prepare papers
+
+Run all cells of /src/prepro/prepare_data.ipynb Jupyter notebook. It assumes that dataset with abstracts and fragments of papers are located in `/data' folder.
+
+Then follow steps 2-5 described below. 
 
 ## Data Preparation For CNN/Dailymail
 ### Option 1: download the processed data
@@ -135,6 +142,8 @@ python preprocess.py -mode format_to_bert -raw_path JSON_PATH -save_path BERT_DA
 python train.py -task ext -mode train -bert_data_path BERT_DATA_PATH -ext_dropout 0.1 -model_path MODEL_PATH -lr 2e-3 -visible_gpus 0,1,2 -report_every 50 -save_checkpoint_steps 1000 -batch_size 3000 -train_steps 50000 -accum_count 2 -log_file ../logs/ext_bert_cnndm -use_interval true -warmup_steps 10000 -max_pos 512
 ```
 
+Set max_pos to 1250 for training on Pubtrends dataset.
+
 ### Abstractive Setting
 
 #### TransformerAbs (baseline)
@@ -155,6 +164,9 @@ python train.py  -task abs -mode train -bert_data_path BERT_DATA_PATH -dec_dropo
 
 
 ## Model Evaluation
+
+Set max_pos to 1250 for model evaluation on Pubtrends dataset.
+
 ### CNN/DM
 ```
  python train.py -task abs -mode validate -batch_size 3000 -test_batch_size 500 -bert_data_path BERT_DATA_PATH -log_file ../logs/val_abs_bert_cnndm -model_path MODEL_PATH -sep_optim true -use_interval true -visible_gpus 1 -max_pos 512 -max_length 200 -alpha 0.95 -min_length 50 -result_path ../logs/abs_bert_cnndm 
